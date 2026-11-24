@@ -1,12 +1,13 @@
 using BD.WTTS.Enums;
 using BD.WTTS.Helpers;
-using System.Diagnostics.Metrics;
 using WinAuth;
 
 namespace BD.WTTS.UI.ViewModels;
 
 public partial class AuthenticatorGeneralImportPageViewModel
 {
+    const string EmptyCode = "------";
+
     public string Name => Strings.LocalAuth_Import.Format(Strings.HOTP);
 
     IAuthenticatorValueDTO? importAuthenticatorValueDto;
@@ -17,6 +18,8 @@ public partial class AuthenticatorGeneralImportPageViewModel
 
     public ICommand ImportCommand { get; }
 
+    public ICommand ReadQrImageCommand { get; }
+
     public AuthenticatorGeneralImportPageViewModel() : this(AuthenticatorPlatform.HOTP)
     {
     }
@@ -25,131 +28,68 @@ public partial class AuthenticatorGeneralImportPageViewModel
     {
         Platform = platform;
 
-        var generateCode = ReactiveCommand.CreateFromTask(GenerateCode);
+        var generateCode = ReactiveCommand.Create(GenerateCode);
         var import = ReactiveCommand.CreateFromTask(Import);
+        var readQrImage = ReactiveCommand.CreateFromTask(ReadQrImage);
         CompositeDisposable.Add(generateCode);
         CompositeDisposable.Add(import);
+        CompositeDisposable.Add(readQrImage);
         CompositeDisposable.Add(import.ThrownExceptions.Subscribe(static ex => ex.LogAndShowT()));
+        CompositeDisposable.Add(readQrImage.ThrownExceptions.Subscribe(_ =>
+        {
+            InvalidatePreview();
+            ShowInvalidQrImage();
+        }));
+        CompositeDisposable.Add(this.WhenAnyValue(x => x.SecretCode, x => x.AuthType, x => x.HMACType,
+                x => x.CodeDigits, x => x.Period)
+            .Subscribe(_ => InvalidatePreview()));
         GenerateCodeCommand = generateCode;
         ImportCommand = import;
+        ReadQrImageCommand = readQrImage;
     }
 
-    //TODO: 待完善
-    public async Task<string?> DecodePrivateKey(string secretCode)
+    async Task ReadQrImage()
     {
-        //if (AuthenticatorRegexHelper.SecretCodeHttpRegex().Match(secretCode) is { Success: true })
-        //{
-        //    ////url图片二维码解码
-        //    //var handler = new HttpClientHandler
-        //    //{
-        //    //    AllowAutoRedirect = true,
-        //    //    MaxAutomaticRedirections = 1000,
-        //    //};
-        //    //using var httpClient = new HttpClient(handler);
-        //    //httpClient.DefaultRequestHeaders.Add("User-Agent", UserAgent.Default);
-        //    //httpClient.Timeout = new TimeSpan(0, 0, 20);
-        //    //try
-        //    //{
-        //    //    var response = await httpClient.GetAsync(secretCode);
-        //    //    if (response.StatusCode == HttpStatusCode.OK)
-        //    //    {
-        //    //        response.Content.Headers.ContentType.;
-
-        //    //        using (var bitmap = System.Drawing.Image.FromStream(await response.Content.ReadAsStreamAsync()))
-        //    //        {
-        //    //            //二维码解析
-        //    //            //IBarcodeReader reader = new BarcodeReader();
-        //    //            //var result = reader.Decode(bitmap);
-        //    //            //if (result != null)
-        //    //            //{
-        //    //            //    privatekey = HttpUtility.UrlDecode(result.Text);
-        //    //            //}
-        //    //        }
-        //    //    }
-
-        //    //}
-        //    //catch (Exception e)
-        //    //{
-        //    //    Toast.Show(ToastIcon.Error, AppResources.Error_ScanQRCodeFailed_.Format(e.Message));
-        //    //    Log.Error(nameof(AuthenticatorHelper), e, nameof(DecodePrivateKey));
-        //    //}
-
-        //}
-        //        else if (AuthenticatorRegexHelper.SecretCodeDataImageRegex().Match(secretCode) is { Success: true } dataImageMatch)
-        //        {
-        //            var imageData = Convert.FromBase64String(dataImageMatch.Groups[2].Value);
-        //            using var ms = new MemoryStream(imageData);
-        //#if WINDOWS
-        //            using (var bitmap = (System.Drawing.Bitmap)System.Drawing.Image.FromStream(ms))
-        //            {
-        //                //二维码解析
-
-        //            }
-        //#endif
-        //        }
-        if (AuthenticatorRegexHelper.SecretCodeOptAuthRegex().Match(secretCode) is { Success: true } optMatch)
+        var file = await FilePicker2.PickAsync(new PickOptions
         {
-            var authType = optMatch.Groups[1].Value;
-            var label = optMatch.Groups[2].Value;
+            PickerTitle = Strings.AuthImport_ReadQrImage,
+            FileTypes = IFilePickerFileType.Images(),
+        });
+        if (file == null)
+            return;
 
-            switch (authType)
-            {
-                case "totp":
-                    AuthType = AuthType.TOTP;
-                    break;
-                case "hotp":
-                    AuthType = AuthType.HOTP;
-                    break;
-                default:
-                    return null;
-            }
-
-            var qs = HttpUtility.ParseQueryString(optMatch.Groups[3].Value);
-            var privatekey = qs["secret"];
-            if (qs != null)
-            {
-                if (long.TryParse(qs["counter"], out var counter) == true)
-                {
-                    CurrentCode = counter.ToString();
-                }
-
-                var issuer = qs["issuer"];
-                if (string.IsNullOrEmpty(issuer) == false)
-                {
-                    label = issuer + (string.IsNullOrEmpty(label) == false ? " (" + label + ")" : string.Empty);
-                }
-                AuthenticatorName = label;
-
-                if (int.TryParse(qs["period"], out var period) == true && period > 0)
-                {
-                    Period = period;
-                }
-
-                if (int.TryParse(qs["digits"], out var digits) == true && digits > 0)
-                {
-                    CodeDigits = digits;
-                }
-
-                if (Enum.TryParse<HMACTypes>(qs["algorithm"], true, out var hmac) == true)
-                {
-                    HMACType = hmac;
-                }
-
-                return privatekey;
-            }
-        }
-        else
+        var previousInput = SecretCode;
+        await using var image = await file.OpenReadAsync();
+        var text = await Task.Run(() => AuthenticatorQrImage.Read(image));
+        if (SecretCode != previousInput)
+            return;
+        if (text == null)
         {
-            var privateKey = AuthenticatorRegexHelper.SecretHexCodeAuthRegex().Replace(secretCode, "");
-            return privateKey.Length < 1 ? null : privateKey;
+            InvalidatePreview();
+            ShowInvalidQrImage();
+            return;
         }
 
-        return null;
+        SecretCode = text;
+        GenerateCode();
     }
 
-    public async Task GenerateCode()
+    static void ShowInvalidQrImage() => Toast.Show(ToastIcon.Error, Strings.AuthImport_InvalidQrImage);
+
+    void InvalidatePreview()
     {
-        if (string.IsNullOrEmpty(SecretCode))
+        var hadPreview = importAuthenticatorValueDto != null;
+        importAuthenticatorValueDto = null;
+        if (AuthType == AuthType.TOTP || hadPreview)
+            CurrentCode = EmptyCode;
+    }
+
+    void GenerateCode()
+    {
+        var counterText = CurrentCode;
+        InvalidatePreview();
+        var text = SecretCode?.Trim();
+        if (string.IsNullOrEmpty(text))
         {
             Toast.Show(ToastIcon.Info, Strings.Info_PleaseEnterImportText);
             return;
@@ -157,91 +97,142 @@ public partial class AuthenticatorGeneralImportPageViewModel
 
         try
         {
-            var privateKey = await DecodePrivateKey(SecretCode);
-
-            if (string.IsNullOrEmpty(privateKey))
-            {
-                Toast.Show(ToastIcon.Error, Strings.LocalAuth_Import_DecodePrivateKeyError.Format(Platform.ToString()));
+            AuthenticatorValueDTO? authenticator = text.StartsWith(GoogleAuthenticatorMigration.Scheme + ":", StringComparison.OrdinalIgnoreCase)
+                ? ReadMigration(text)
+                : ReadStandardToken(text, counterText);
+            if (authenticator == null)
                 return;
-            }
 
-            switch (Platform)
-            {
-                case AuthenticatorPlatform.Google:
-                    {
-                        var auth = new GoogleAuthenticator();
-                        auth.Enroll(privateKey);
-
-                        if (auth.ServerTimeDiff == 0L)
-                        {
-                            // 可以强行添加，但无法保证令牌准确性。
-                            Toast.Show(ToastIcon.Error, Strings.Error_CannotConnectGoogleServer);
-                            return;
-                        }
-                        importAuthenticatorValueDto = auth;
-                        break;
-                    }
-                case AuthenticatorPlatform.Microsoft:
-                    {
-                        var auth = new MicrosoftAuthenticator();
-                        auth.Enroll(privateKey);
-
-                        if (auth.ServerTimeDiff == 0L)
-                        {
-                            // 可以强行添加，但无法保证令牌准确性。
-                            Toast.Show(ToastIcon.Error, Strings.Error_CannotConnectGoogleServer);
-                            return;
-                        }
-                        importAuthenticatorValueDto = auth;
-                        break;
-                    }
-                case AuthenticatorPlatform.HOTP:
-                    {
-
-                        if (AuthType == AuthType.TOTP)
-                        {
-                            var auth = new TOTPAuthenticator();
-                            auth.Enroll(privateKey);
-
-                            auth.HMACType = HMACType;
-                            auth.CodeDigits = CodeDigits;
-                            auth.Period = Period;
-                            importAuthenticatorValueDto = auth;
-                        }
-                        else
-                        {
-                            var auth = new HOTPAuthenticator();
-                            long counter = 0;
-                            if (CurrentCode?.Trim().Any_Nullable() == true)
-                            {
-                                long.TryParse(CurrentCode.Trim(), out counter);
-                            }
-                            auth.Enroll(privateKey, counter);
-
-                            auth.HMACType = HMACType;
-                            auth.CodeDigits = CodeDigits;
-                            auth.Period = Period;
-                            importAuthenticatorValueDto = auth;
-                        }
-                    }
-                    break;
-            }
-            if (importAuthenticatorValueDto == null)
-            {
-                Toast.Show(ToastIcon.Info, Strings.L10nAuthIdle_Text080);
-            }
-            else
-                CurrentCode = importAuthenticatorValueDto.CurrentCode;
+            CurrentCode = authenticator.CurrentCode;
+            importAuthenticatorValueDto = authenticator;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ex.LogAndShowT();
+            // Errors during import may include part of the source token. Show a fixed message.
+            ShowInvalidSecret();
         }
+    }
+
+    AuthenticatorValueDTO? ReadMigration(string text)
+    {
+        var result = GoogleAuthenticatorMigration.Read(text, out var token);
+        if (token == null)
+        {
+            Toast.Show(ToastIcon.Error, result switch
+            {
+                GoogleAuthenticatorMigration.Result.MultipleAccounts => Strings.AuthImport_GoogleSingleAccount,
+                GoogleAuthenticatorMigration.Result.UnsupportedToken => Strings.AuthImport_GoogleUnsupportedToken,
+                _ => Strings.AuthImport_InvalidQrImage,
+            });
+            return null;
+        }
+
+        AuthType = AuthType.TOTP;
+        HMACType = token.Algorithm;
+        CodeDigits = token.Digits;
+        Period = AuthenticatorValueDTO.DEFAULT_PERIOD;
+        AuthenticatorName = FormatName(token.Name, token.Issuer);
+        return new TOTPAuthenticator
+        {
+            SecretKey = token.Secret,
+            Issuer = token.Issuer,
+            HMACType = token.Algorithm,
+            CodeDigits = token.Digits,
+            Period = Period,
+        };
+    }
+
+    AuthenticatorValueDTO? ReadStandardToken(string text, string? counterText)
+    {
+        string? secret = text;
+        string? issuer = null;
+        if (text.StartsWith("otpauth:", StringComparison.OrdinalIgnoreCase))
+        {
+            var match = AuthenticatorRegexHelper.SecretCodeOptAuthRegex().Match(text);
+            if (!match.Success)
+                return ShowInvalidSecret();
+
+            var options = HttpUtility.ParseQueryString(match.Groups[3].Value);
+            if (!TryReadOptions(options["period"], options["digits"], options["algorithm"]))
+                return ShowInvalidSecret();
+
+            secret = options["secret"];
+            issuer = options["issuer"];
+            AuthType = match.Groups[1].Value.Equals("hotp", StringComparison.OrdinalIgnoreCase) ? AuthType.HOTP : AuthType.TOTP;
+            AuthenticatorName = FormatName(Uri.UnescapeDataString(match.Groups[2].Value), issuer);
+            counterText = options["counter"];
+        }
+        else if (Platform != AuthenticatorPlatform.HOTP)
+        {
+            AuthType = AuthType.TOTP;
+            HMACType = HMACTypes.SHA1;
+            CodeDigits = AuthenticatorValueDTO.DEFAULT_CODE_DIGITS;
+            Period = AuthenticatorValueDTO.DEFAULT_PERIOD;
+        }
+
+        if (!AuthenticatorRegexHelper.TryDecodeBase32(secret, out var key) || Period <= 0
+            || CodeDigits is < 1 or > 9 || !Enum.IsDefined(HMACType))
+            return ShowInvalidSecret();
+
+        AuthenticatorValueDTO authenticator;
+        if (AuthType == AuthType.HOTP)
+        {
+            if (!long.TryParse(counterText, out var count) || count < 0)
+            {
+                if (counterText is not (null or "" or EmptyCode))
+                    return ShowInvalidSecret();
+                count = 0;
+            }
+            authenticator = new HOTPAuthenticator { Counter = count };
+        }
+        else
+        {
+            authenticator = Platform switch
+            {
+                AuthenticatorPlatform.Google => new GoogleAuthenticator(),
+                AuthenticatorPlatform.Microsoft => new MicrosoftAuthenticator(),
+                _ => new TOTPAuthenticator(),
+            };
+        }
+
+        authenticator.SecretKey = key;
+        authenticator.Issuer = issuer ?? authenticator.Issuer;
+        authenticator.HMACType = HMACType;
+        authenticator.CodeDigits = CodeDigits;
+        authenticator.Period = Period;
+        // CurrentCode starts any available time sync and can generate a preview using the system clock.
+        return authenticator;
+    }
+
+    bool TryReadOptions(string? periodText, string? digitsText, string? algorithmText)
+    {
+        var period = AuthenticatorValueDTO.DEFAULT_PERIOD;
+        var digits = AuthenticatorValueDTO.DEFAULT_CODE_DIGITS;
+        var algorithm = HMACTypes.SHA1;
+        if (periodText != null && (!int.TryParse(periodText, out period) || period <= 0)
+            || digitsText != null && (!int.TryParse(digitsText, out digits) || digits is < 1 or > 9)
+            || algorithmText != null && (!Enum.TryParse(algorithmText, true, out algorithm) || !Enum.IsDefined(algorithm)))
+            return false;
+
+        Period = period;
+        CodeDigits = digits;
+        HMACType = algorithm;
+        return true;
+    }
+
+    static string FormatName(string name, string? issuer) => string.IsNullOrWhiteSpace(issuer) ? name
+        : string.IsNullOrWhiteSpace(name) ? issuer : $"{issuer} ({name})";
+
+    AuthenticatorValueDTO? ShowInvalidSecret()
+    {
+        Toast.Show(ToastIcon.Error, Strings.LocalAuth_Import_DecodePrivateKeyError.Format(Platform.ToString()));
+        return null;
     }
 
     async Task Import()
     {
-        if (importAuthenticatorValueDto == null)
+        var authenticator = importAuthenticatorValueDto;
+        if (authenticator == null)
         {
             Toast.Show(ToastIcon.Info, Strings.Info_PleaseVerifyFirstAuthCode);
             return;
@@ -255,8 +246,8 @@ public partial class AuthenticatorGeneralImportPageViewModel
 
         var iAuthenticatorDtoDto = new AuthenticatorDTO()
         {
-            Name = $"{importAuthenticatorValueDto.Platform}({AuthenticatorName})",
-            Value = importAuthenticatorValueDto,
+            Name = $"{authenticator.Platform}({AuthenticatorName})",
+            Value = authenticator,
             Created = DateTimeOffset.Now,
         };
 

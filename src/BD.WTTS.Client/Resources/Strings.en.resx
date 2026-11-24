@@ -2571,8 +2571,20 @@ The system will {1} after {0} seconds.</value>
     <value>Generate Code</value>
     <comment>Author=kotovasia5120</comment>
   </data>
+  <data name="AuthImport_ReadQrImage" xml:space="preserve">
+    <value>Import from QR image</value>
+  </data>
+  <data name="AuthImport_InvalidQrImage" xml:space="preserve">
+    <value>Could not read an authenticator QR code. Select a clear setup or Google Authenticator export image.</value>
+  </data>
+  <data name="AuthImport_GoogleSingleAccount" xml:space="preserve">
+    <value>Select one account to export in Google Authenticator, then import its QR code.</value>
+  </data>
+  <data name="AuthImport_GoogleUnsupportedToken" xml:space="preserve">
+    <value>This Google export uses an unsupported token type or parameters.</value>
+  </data>
   <data name="GeneralAuth_EnterkeyOrLink" xml:space="preserve">
-    <value>Enter the token prompted by the website and import the Key value after QR code recognition</value>
+    <value>Paste a Base32 setup key or authenticator link</value>
     <comment>Author=kotovasia5120</comment>
   </data>
   <data name="GeneralAuth_ImportText" xml:space="preserve">
@@ -2584,7 +2596,7 @@ The system will {1} after {0} seconds.</value>
     <comment>Author=kotovasia5120</comment>
   </data>
   <data name="GeneralAuth_VerifySuccessfulImport" xml:space="preserve">
-    <value>Please verify whether the following code is correct and import it if it is correct.</value>
+    <value>Generate a code after the original authenticator refreshes. Confirm both codes match in the same interval before importing.</value>
     <comment>Author=kotovasia5120</comment>
   </data>
   <data name="Info_AccountAlreadyLogin" xml:space="preserve">
@@ -3018,7 +3030,7 @@ Once the transaction is confirmed, it cannot be revoked, please choose carefully
     <comment>Comment=;Author=沙中金</comment>
   </data>
   <data name="LocalAuth_Import_DecodePrivateKeyError" xml:space="preserve">
-    <value>{0} Key parsing failed, please check whether the key is correct</value>
+    <value>Could not read the {0} token. Check the Base32 setup key and token settings from the service.</value>
     <comment>Author=kotovasia5120</comment>
   </data>
   <data name="Auth_Sync_LatestData" xml:space="preserve">

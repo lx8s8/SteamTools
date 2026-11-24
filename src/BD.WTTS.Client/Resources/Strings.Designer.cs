@@ -3996,7 +3996,43 @@ namespace BD.WTTS.Client.Resources {
         }
         
         /// <summary>
-        ///     Looks up a localized string similar to 输入网站提示的令牌导入二维码识别后的 Key 值.
+        ///     Looks up a localized string similar to 从二维码图片导入
+        /// </summary>
+        public static string AuthImport_ReadQrImage {
+            get {
+                return ResourceManager.GetString("AuthImport_ReadQrImage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///     Looks up a localized string similar to 无法识别令牌二维码。请选择清晰的绑定二维码或 Google 身份验证器导出图片。
+        /// </summary>
+        public static string AuthImport_InvalidQrImage {
+            get {
+                return ResourceManager.GetString("AuthImport_InvalidQrImage", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///     Looks up a localized string similar to 请在 Google 身份验证器中选择一个账号导出，再导入该二维码。
+        /// </summary>
+        public static string AuthImport_GoogleSingleAccount {
+            get {
+                return ResourceManager.GetString("AuthImport_GoogleSingleAccount", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///     Looks up a localized string similar to 此 Google 导出记录的令牌类型或参数暂不支持。
+        /// </summary>
+        public static string AuthImport_GoogleUnsupportedToken {
+            get {
+                return ResourceManager.GetString("AuthImport_GoogleUnsupportedToken", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///     Looks up a localized string similar to 粘贴 Base32 设置密钥或令牌链接.
         /// </summary>
         public static string GeneralAuth_EnterkeyOrLink {
             get {
@@ -4023,7 +4059,7 @@ namespace BD.WTTS.Client.Resources {
         }
         
         /// <summary>
-        ///     Looks up a localized string similar to 请验证下列 Code 是否正确，在其正确的情况下再进行导入.
+        ///     Looks up a localized string similar to 在原验证器刷新后生成验证码，确认同一周期的结果一致再导入。
         /// </summary>
         public static string GeneralAuth_VerifySuccessfulImport {
             get {
@@ -9797,7 +9833,7 @@ namespace BD.WTTS.Client.Resources {
         }
         
         /// <summary>
-        ///     Looks up a localized string similar to {0} 密钥解析失败，请检查密钥是否正确.
+        ///     Looks up a localized string similar to 无法解析 {0} 令牌。请核对服务提供的 Base32 设置密钥和令牌参数。
         /// </summary>
         public static string LocalAuth_Import_DecodePrivateKeyError {
             get {

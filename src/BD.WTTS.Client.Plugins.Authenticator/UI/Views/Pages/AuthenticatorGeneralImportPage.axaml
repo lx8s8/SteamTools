@@ -26,6 +26,7 @@
                     <StackPanel Spacing="5">
                         <TextBlock Text="{x:Static spp:Strings.GeneralAuth_ImportText}" TextWrapping="Wrap" />
                         <TextBox Text="{Binding SecretCode}" PlaceholderText="{x:Static spp:Strings.GeneralAuth_EnterkeyOrLink}" />
+                        <Button Command="{Binding ReadQrImageCommand}" Content="{x:Static spp:Strings.AuthImport_ReadQrImage}" />
                     </StackPanel>
                 </Border>
                 <Border Classes="Item" IsVisible="{Binding Platform, Converter={StaticResource EnumEqualValueConverter}, ConverterParameter={x:Static spp:AuthenticatorPlatform.HOTP}}">

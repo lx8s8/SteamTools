@@ -1989,8 +1989,20 @@
 	<data name="GeneralAuth_Code" xml:space="preserve">
     <value>生成 Code</value>
   </data>
+	<data name="AuthImport_ReadQrImage" xml:space="preserve">
+    <value>从二维码图片导入</value>
+  </data>
+	<data name="AuthImport_InvalidQrImage" xml:space="preserve">
+    <value>无法识别令牌二维码。请选择清晰的绑定二维码或 Google 身份验证器导出图片。</value>
+  </data>
+	<data name="AuthImport_GoogleSingleAccount" xml:space="preserve">
+    <value>请在 Google 身份验证器中选择一个账号导出，再导入该二维码。</value>
+  </data>
+	<data name="AuthImport_GoogleUnsupportedToken" xml:space="preserve">
+    <value>此 Google 导出记录的令牌类型或参数暂不支持。</value>
+  </data>
 	<data name="GeneralAuth_EnterkeyOrLink" xml:space="preserve">
-    <value>输入网站提示的令牌导入二维码识别后的 Key 值</value>
+    <value>粘贴 Base32 设置密钥或令牌链接</value>
   </data>
 	<data name="GeneralAuth_ImportText" xml:space="preserve">
     <value>导入文本</value>
@@ -1999,7 +2011,7 @@
     <value>令牌名称</value>
   </data>
 	<data name="GeneralAuth_VerifySuccessfulImport" xml:space="preserve">
-    <value>请验证下列 Code 是否正确，在其正确的情况下再进行导入</value>
+    <value>在原验证器刷新后生成验证码，确认同一周期的结果一致再导入。</value>
   </data>
 	<data name="Info_AccountAlreadyLogin" xml:space="preserve">
     <value>已经使用此账号登录</value>
@@ -2338,7 +2350,7 @@
     <value>该文本文件已丢失，是否删除脚本记录</value>
   </data>
 	<data name="LocalAuth_Import_DecodePrivateKeyError" xml:space="preserve">
-    <value>{0} 密钥解析失败，请检查密钥是否正确</value>
+    <value>无法解析 {0} 令牌。请核对服务提供的 Base32 设置密钥和令牌参数。</value>
   </data>
 	<data name="Auth_Sync_LatestData" xml:space="preserve">
     <value>本地令牌已为最新数据</value>
